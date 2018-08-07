@@ -1,0 +1,7 @@
+prefix={{SDKSTAGE}}
+exec_prefix=${prefix}
+wayland_scanner=${exec_prefix}/host_utils/wayland-scanner
+
+Name: Wayland Scanner
+Description: Wayland scanner
+Version: 1.15.0

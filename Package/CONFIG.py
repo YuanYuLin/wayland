@@ -26,8 +26,9 @@ def set_global(args):
     global tmp_include_dir
     global dst_include_dir
     global dst_lib_dir
+    global src_pkgconfig_dir
     global dst_pkgconfig_dir
-    global wayland_scanner
+    global host_utils
     pkg_path = args["pkg_path"]
     output_dir = args["output_path"]
     tarball_pkg = ops.path_join(pkg_path, TARBALL_FILE)
@@ -39,8 +40,9 @@ def set_global(args):
     tmp_include_dir = ops.path_join(output_dir, ops.path_join("include",args["pkg_name"]))
     dst_include_dir = ops.path_join("include",args["pkg_name"])
     dst_lib_dir = ops.path_join(install_dir, "lib")
-    dst_pkgconfig_dir = ops.path_join(ops.path_join(output_dir, "pkgconfig"), "pkgconfig")
-    wayland_scanner = ops.path_join(pkg_path, "host_utils/wayland-scanner")
+    src_pkgconfig_dir = ops.path_join(pkg_path, "pkgconfig")
+    dst_pkgconfig_dir = ops.path_join(install_dir, "pkgconfig")
+    host_utils = ops.path_join(iopc.getSdkPath(), "host_utils")
 
 def MAIN_ENV(args):
     set_global(args)
@@ -49,9 +51,9 @@ def MAIN_ENV(args):
     ops.exportEnv(ops.setEnv("CXX", ops.getEnv("CROSS_COMPILE") + "g++"))
     ops.exportEnv(ops.setEnv("CROSS", ops.getEnv("CROSS_COMPILE")))
     ops.exportEnv(ops.setEnv("DESTDIR", install_tmp_dir))
-    ops.exportEnv(ops.setEnv("PKG_CONFIG_LIBDIR", ops.path_join(iopc.getSdkPath(), "pkgconfig")))
-    ops.exportEnv(ops.setEnv("PKG_CONFIG_SYSROOT_DIR", iopc.getSdkPath()))
-    ops.exportEnv(ops.setEnv("WAYLAND_SCANNER_UTIL", wayland_scanner))
+    #ops.exportEnv(ops.setEnv("PKG_CONFIG_LIBDIR", ops.path_join(iopc.getSdkPath(), "pkgconfig")))
+    #ops.exportEnv(ops.setEnv("PKG_CONFIG_SYSROOT_DIR", iopc.getSdkPath()))
+    #ops.exportEnv(ops.setEnv("WAYLAND_SCANNER_UTIL", wayland_scanner))
     ops.exportEnv(ops.addEnv("PATH", ops.path_join(pkg_path, "host_utils")))
 
     cc_sysroot = ops.getEnv("CC_SYSROOT")
@@ -66,9 +68,9 @@ def MAIN_ENV(args):
 
     libs = ""
     libs += " -lffi -lxml2 -lexpat"
-    ops.exportEnv(ops.setEnv("LDFLAGS", ldflags))
-    ops.exportEnv(ops.setEnv("CFLAGS", cflags))
-    ops.exportEnv(ops.setEnv("LIBS", libs))
+    #ops.exportEnv(ops.setEnv("LDFLAGS", ldflags))
+    #ops.exportEnv(ops.setEnv("CFLAGS", cflags))
+    #ops.exportEnv(ops.setEnv("LIBS", libs))
 
     return False
 
@@ -98,12 +100,19 @@ def MAIN_CONFIGURE(args):
     extra_conf.append("--disable-silent-rules")
     extra_conf.append("--with-host-scanner")
     extra_conf.append("--disable-documentation")
-    extra_conf.append('FFI_CFLAGS="-I' + ops.path_join(iopc.getSdkPath(), 'usr/include/libffi') + '"')
-    extra_conf.append('FFI_LIBS="-L' + ops.path_join(iopc.getSdkPath(), 'lib') + ' -lffi"')
-    extra_conf.append('EXPAT_CFLAGS="-I' + ops.path_join(iopc.getSdkPath(), 'usr/include/libexpat') + '"')
-    extra_conf.append('EXPAT_LIBS="-L' + ops.path_join(iopc.getSdkPath(), 'lib') + ' -lexpat"')
-    extra_conf.append('LIBXML_CFLAGS="-I' + ops.path_join(iopc.getSdkPath(), 'usr/include/libxml2') + '"')
-    extra_conf.append('LIBXML_LIBS="-L' + ops.path_join(iopc.getSdkPath(), 'lib') + ' -lxml2"')
+    cflags = ""
+    cflags += " -I" + ops.path_join(iopc.getSdkPath(), 'usr/include/libffi')
+    cflags += " -I" + ops.path_join(iopc.getSdkPath(), 'usr/include/libexpat')
+    cflags += " -I" + ops.path_join(iopc.getSdkPath(), 'usr/include/libxml2')
+    libs = ""
+    libs += " -L" + ops.path_join(iopc.getSdkPath(), 'lib')
+    libs += " -lffi -lexpat -lxml2"
+    extra_conf.append('FFI_CFLAGS=' + cflags)
+    extra_conf.append('FFI_LIBS=' + libs)
+    extra_conf.append('EXPAT_CFLAGS=' + cflags)
+    extra_conf.append('EXPAT_LIBS=' + libs)
+    extra_conf.append('LIBXML_CFLAGS=' + cflags)
+    extra_conf.append('LIBXML_LIBS=' + libs)
     iopc.configure(tarball_dir, extra_conf)
 
     return True
@@ -146,8 +155,11 @@ def MAIN_BUILD(args):
     ops.mkdir(tmp_include_dir)
     ops.copyto(ops.path_join(install_tmp_dir, "usr/local/include/."), tmp_include_dir)
 
+    ops.mkdir(host_utils)
+    ops.copyto(ops.path_join(pkg_path, "host_utils/wayland-scanner"), host_utils)
+
     ops.mkdir(dst_pkgconfig_dir)
-    ops.copyto(ops.path_join(install_tmp_dir, "usr/local/lib/pkgconfig/wayland-scanner.pc"), dst_pkgconfig_dir)
+    ops.copyto(ops.path_join(src_pkgconfig_dir, '.'), dst_pkgconfig_dir)
     return False
 
 def MAIN_INSTALL(args):
